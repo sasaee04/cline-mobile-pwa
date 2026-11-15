@@ -1,71 +1,44 @@
-# Cline Mobile PWA Starter
+# Cline Mobile PWA
 
-This project is a starter for a desktop-hosted Cline core with a mobile-friendly web/PWA frontend.
+A mobile-friendly remote interface for Cline. The Cline SDK and coding tools run on your computer; your phone is a client. This is not a port of the VS Code extension to Android.
 
-## What this is
+## Run locally
 
-This is not a direct Android port of the VS Code extension. Instead, it follows the correct architecture:
-
-- Keep the real Cline runtime on a computer/server
-- Expose a chat API to the browser and phone
-- Deliver a PWA or web client for mobile devices
-
-## Architecture
-
-- Server: Express + Socket.IO
-- Client: React + Vite
-- Mobile: installable PWA
-- Runtime adapter: configurable local CLI or external agent service
-
-## Quick start
+Requirements: Node.js 22 or newer and an API key/provider supported by Cline.
 
 ```bash
+cp .env.example .env
+# Edit .env: set CLINE_PROVIDER_ID, CLINE_MODEL_ID (if needed), CLINE_API_KEY,
+# and CLINE_WORKSPACE_ROOT to your project directory.
 npm install
 npm run dev
 ```
 
-Open the web app at:
+Open http://localhost:5173, then paste the access token printed by the server terminal. The token is generated at each startup unless you set `CLINE_MOBILE_TOKEN` in `.env`.
 
-- http://localhost:5173
+## Use from your phone on the same private network
 
-Check the API at:
+1. Keep the computer and phone on a trusted private network.
+2. Set `CLINE_HOST=0.0.0.0` and add the Vite origin using the computer's LAN IP to `WEB_ORIGINS` (for example `http://192.168.1.20:5173`).
+3. Run `npm run dev`, then open `http://<computer-LAN-IP>:5173` on the phone and enter the printed token.
+4. Install the PWA from your mobile browser's menu if offered.
 
-- http://localhost:3001/health
+The development server is for trusted LAN testing only. Do not forward port 3001 or expose it directly to the public internet. For remote use, put the app behind HTTPS and strong authentication, preferably on a private overlay network such as Tailscale. Browser PWA installation and service workers require a secure context (HTTPS, except localhost).
 
-## Runtime adapter
+## Runtime and safety
 
-The current backend supports two modes:
+- The backend uses the official `@cline/sdk` ClineCore runtime; it does not shell out to a prompt-derived command.
+- The SDK uses the configured local workspace and can edit files or run tools. Read-only file/search tools are auto-approved; other tools require approval in the authenticated web client and are denied if approval times out.
+- Never share the access token. Anyone who has it can control the configured agent/workspace.
+- Sessions/messages are currently held in server memory by this UI adapter. Cline's runtime persists its own session data, but this starter does not yet restore the UI transcript after a server restart.
 
-1. mock mode (default)
-2. exec mode via a configured command
+## Current API
 
-Set environment variables before launching the app:
+- `GET /health`
+- `GET /api/sessions`
+- `POST /api/sessions`
+- `GET /api/sessions/:sessionId/messages`
+- `POST /api/sessions/:sessionId/messages` with `{ "content": "..." }`
+- `POST /api/approvals/:requestId` with `{ "approved": true | false }`
 
-```bash
-export CLINE_RUNTIME_MODE=exec
-export CLINE_RUNTIME_COMMAND="/path/to/your/cli"
-export CLINE_RUNTIME_ARGS="--flag --other"
-```
-
-Then run:
-
-```bash
-npm run dev
-```
-
-If you do not set the runtime variables, the app will remain in mock mode and return a helpful message instead of failing unexpectedly.
-
-## Why this is the right architecture
-
-The official Cline project is built around VS Code extension APIs, desktop host behavior, and editor workflows. Those are not directly portable to Android. The correct pattern is to keep the Cline runtime on a host and use a remote UI. This gives you:
-
-- real agent logic on a computer/server
-- mobile-friendly access via browser or PWA
-- lower technical risk than porting the editor extension itself
-
-## Next steps
-
-- connect the runtime adapter to the real Cline CLI or SDK
-- add user auth and session persistence
-- add approval tracking for tool actions
-- add deployment hosting for production mobile access
+All `/api` endpoints and Socket.IO connections require the bearer token. This is an MVP foundation, not a fully audited production service. Before public deployment, add durable UI history, per-user authentication/authorization, rate limiting, TLS termination, and security testing.

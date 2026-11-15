@@ -2,10 +2,15 @@
   "name": "server",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "dev": "tsx watch index.ts"
+    "dev": "tsx watch index.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@cline/sdk": "^0.2.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "socket.io": "^4.8.1"
@@ -14,6 +19,7 @@
     "@types/cors": "^2.8.5",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.2",
-    "tsx": "^4.19.1"
+    "tsx": "^4.19.1",
+    "typescript": "^5.7.2"
   }
 }
