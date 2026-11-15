@@ -2,6 +2,7 @@ import express from "express"
 import http from "http"
 import cors from "cors"
 import { Server as SocketIOServer } from "socket.io"
+import { RuntimeAdapter } from "./runtime-adapter.js"
 
 type Message = {
   id: string
@@ -18,38 +19,42 @@ const io = new SocketIOServer(server, {
   },
 })
 
+const runtime = new RuntimeAdapter()
+
 app.use(cors())
 app.use(express.json())
 
 const messages: Message[] = []
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true })
+  res.json({ ok: true, mode: process.env.CLINE_RUNTIME_MODE || "mock" })
 })
 
 app.get("/messages", (_req, res) => {
   res.json(messages)
 })
 
-app.post("/message", (req, res) => {
+app.post("/message", async (req, res) => {
   const { content } = req.body as { content?: string }
 
   if (!content || !content.trim()) {
     return res.status(400).json({ error: "Message cannot be empty" })
   }
 
+  const prompt = content.trim()
+
   const userMessage: Message = {
     id: crypto.randomUUID(),
     role: "user",
-    content: content.trim(),
+    content: prompt,
   }
 
   messages.push(userMessage)
   io.emit("message", userMessage)
 
-  const responseText = `Cline mobile server received: "${content.trim()}"`
+  try {
+    const responseText = await runtime.sendPrompt(prompt)
 
-  setTimeout(() => {
     const assistantMessage: Message = {
       id: crypto.randomUUID(),
       role: "assistant",
@@ -58,9 +63,22 @@ app.post("/message", (req, res) => {
 
     messages.push(assistantMessage)
     io.emit("message", assistantMessage)
-  }, 600)
 
-  res.json({ ok: true })
+    res.json({ ok: true })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown runtime error"
+
+    const assistantMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: `Runtime error: ${message}`,
+    }
+
+    messages.push(assistantMessage)
+    io.emit("message", assistantMessage)
+
+    res.status(503).json({ ok: false, error: message })
+  }
 })
 
 io.on("connection", (socket) => {
@@ -68,7 +86,8 @@ io.on("connection", (socket) => {
   socket.emit("history", messages)
 })
 
-const PORT = 3001
+const PORT = Number(process.env.PORT || 3001)
 server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`)
+  console.log(`Runtime mode: ${process.env.CLINE_RUNTIME_MODE || "mock"}`)
 })
