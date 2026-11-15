@@ -1,0 +1,17 @@
+{
+  "name": "cline-mobile-pwa",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/web",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace server\" \"npm run dev --workspace web\"",
+    "build": "npm run build --workspace web",
+    "start": "npm run dev --workspace server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}
